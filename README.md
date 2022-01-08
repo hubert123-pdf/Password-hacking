@@ -1,4 +1,4 @@
-#Password Hacking
+Password Hacking
 
 ##To make:
 mkdir build
