@@ -1,6 +1,6 @@
-Password Hacking
+# Password Hacking
 
-##To make:
+## To make:
 mkdir build
 cd build
 cmake ..
