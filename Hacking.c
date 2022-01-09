@@ -1,38 +1,43 @@
- #include <stdio.h>
- #include <string.h>
- #include <openssl/evp.h>
+#include "MD5.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#define PRODUCER_THREADS 3
+#define CONSUMER_THREAD 1
 
- int main(int argc, char *argv[])
- {
-     EVP_MD_CTX *mdctx;
-     const EVP_MD *md;
-     char mess1[] = "Test Message\n";
-     char mess2[] = "Hello World\n";
-     unsigned char md_value[EVP_MAX_MD_SIZE];
-     unsigned int md_len, i;
 
-     if (argv[1] == NULL) {
-         printf("Usage: mdtest digestname\n");
-         exit(1);
-     }
 
-     md = EVP_get_digestbyname(argv[1]);
-     if (md == NULL) {
-         printf("Unknown message digest %s\n", argv[1]);
-         exit(1);
-     }
+void* Producer0(void* arg)
+{
+    
+}
+void* Producer1(void* arg)
+{
+    
+}
+void* Producer2(void* arg)
+{
+    
+}
+void* Consumer(void* arg)
+{
+    
+}
+int main(int argc, char* argv[])
+{
+    char password[32];
+    pthread_t thread[PRODUCER_THREADS+CONSUMER_THREAD];
+    
+    pthread_create(&thread[0],NULL,Producer0,(void*)password) ; 
+    pthread_create(&thread[1],NULL,Producer1,(void*)password) ; 
+    pthread_create(&thread[2],NULL,Producer2,(void*)password) ; 
+    pthread_create(&thread[3],NULL,Consumer,(void*)password) ; 
 
-     mdctx = EVP_MD_CTX_new();
-     EVP_DigestInit_ex(mdctx, md, NULL);
-     EVP_DigestUpdate(mdctx, mess1, strlen(mess1));
-     EVP_DigestUpdate(mdctx, mess2, strlen(mess2));
-     EVP_DigestFinal_ex(mdctx, md_value, &md_len);
-     EVP_MD_CTX_free(mdctx);
+    for(int i=0;i<PRODUCER_THREADS+CONSUMER_THREAD;i++)
+    {
+        pthread_join(thread[i],NULL);
+        printf("Thread %d is done. \n",i);
+    }
+    pthread_exit(NULL);
 
-     printf("Digest is: ");
-     for (i = 0; i < md_len; i++)
-         printf("%02x", md_value[i]);
-     printf("\n");
-
-     exit(0);
- }
+}
