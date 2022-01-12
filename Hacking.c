@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -6,16 +5,24 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
+#include <unistd.h>
+
 #define PRODUCER_THREADS 3
 #define CONSUMER_THREAD 1
 
 FILE *passwords,*dictionary;
 char emails[1000][64];
 char passwords_to_hack[1000][32];
-char *example_password;
+char passwords_hacked[1000][32];
 int k=0;
-pthread_mutex_t consumer_mutex,mutex1,mutex2;
+pthread_mutex_t mutex1;
 pthread_cond_t cv1;
+struct Info
+{
+    char passed_password[32];
+    char passed_email[32];
+}pass; 
 
 void MD5_digest(char argv[],unsigned char tab[])
 {
@@ -36,14 +43,31 @@ void MD5_digest(char argv[],unsigned char tab[])
         tab[i]=digest[i];
     }
 }
+void sig()
+{
+    printf("\n");
+    for(int i=1;i<k;i++)
+    {
+        printf("%d. Email:%s, Password:%s\n",i,emails[i],passwords_hacked[i]);
+    }
+}
 void* Producer0(void* arg)
 {
-    while(!feof(dictionary))
+    while(1)
     {
+        char *example_password;
         unsigned char tab[16];
         char password_string[32];
         char buff1[33];
         char buff2[33];
+        //
+       /* if(feof(dictionary)){
+            while(1)
+            {
+                int num=0;
+
+            }
+        }*/
         example_password=malloc(sizeof(char)*32);
         fscanf(dictionary,"%s",example_password);
         MD5_digest(example_password,tab);
@@ -55,21 +79,23 @@ void* Producer0(void* arg)
             buff1[i]=passwords_to_hack[k][i];
             buff2[i]=password_string[i];
         }
+        pthread_mutex_lock(&mutex1);
         if(strcmp(buff1,buff2)==0){
-            printf("email:%s password:%s\n",emails[k],example_password);
             rewind(dictionary);
-            pthread_mutex_lock(&mutex1);
+            strcpy(pass.passed_email,emails[k]);
+            strcpy(pass.passed_password,example_password);
             k++;
-            pthread_mutex_unlock(&mutex1);
+            pthread_cond_signal(&cv1);
         }
+        pthread_mutex_unlock(&mutex1);
         free(example_password);
     }
-
 }
 void* Producer1(void* arg)
 {
     while(!feof(dictionary))
     {
+        char *example_password;
         unsigned char tab[16];
         char password_string[32];
         char buff1[33];
@@ -86,23 +112,23 @@ void* Producer1(void* arg)
             buff1[i]=passwords_to_hack[k][i];
             buff2[i]=password_string[i];
         }
+        pthread_mutex_lock(&mutex1);
         if(strcmp(buff1,buff2)==0){
-            printf("email:%s password:%s\n",emails[k],example_password);
             rewind(dictionary);
-            pthread_mutex_lock(&mutex1);
+            strcpy(pass.passed_email,emails[k]);
+            strcpy(pass.passed_password,example_password);
             k++;
-            pthread_mutex_unlock(&mutex1);
+            pthread_cond_signal(&cv1);
         }
+        pthread_mutex_unlock(&mutex1);
         free(example_password);
     }
-
 }
 void* Producer2(void* arg)
 {
-    //oczekiwanie na sygnał od konsumenta
-    //pthread_cond_wait(&cv1, &mutex1);
     while(!feof(dictionary))
     {
+        char *example_password;
         unsigned char tab[16];
         char password_string[32];
         char buff1[33];
@@ -121,21 +147,36 @@ void* Producer2(void* arg)
             buff1[i]=passwords_to_hack[k][i];
             buff2[i]=password_string[i];
         }
+        pthread_mutex_lock(&mutex1);
         if(strcmp(buff1,buff2)==0){
-            printf("email:%s password:%s\n",emails[k],example_password);
             rewind(dictionary);
-            pthread_mutex_lock(&mutex1);
+            strcpy(pass.passed_email,emails[k]);
+            strcpy(pass.passed_password,example_password);
             k++;
-            pthread_mutex_unlock(&mutex1);
+            pthread_cond_signal(&cv1);
         }
+        pthread_mutex_unlock(&mutex1); 
         free(example_password);
     }
 }
 void* Consumer(void* arg)
 {
-    char *new_passwords;
-   // scanf("%s",new_passwords);
+    pthread_mutex_lock(&mutex1);
+    int iterator=k;
+    while(1)
+    {
+        signal(SIGHUP,sig);
+        if(iterator!=k){
+            printf("email:%s password:%s\n",pass.passed_email,pass.passed_password);
+            strcpy(passwords_hacked[iterator],pass.passed_password);
+            iterator=k;
+        }
+        else
+            pthread_cond_wait(&cv1, &mutex1); //oczekuje zwalnia a potem znowu zatrzaskuje;
+    }
+    pthread_mutex_unlock(&mutex1);
 }
+
 int main(int argc, char* argv[])
 {
     long i=0;
@@ -144,7 +185,7 @@ int main(int argc, char* argv[])
                 return 0;
     }
     if((dictionary=fopen(argv[2],"r"))==NULL)
-    { 
+    {
         printf("ERROR2\n");
         return 0;
     }
@@ -156,11 +197,12 @@ int main(int argc, char* argv[])
     }
     pthread_t thread[PRODUCER_THREADS+CONSUMER_THREAD];
     pthread_mutex_init(&mutex1, NULL);
+    pthread_mutex_init(&mutex2, NULL);
     pthread_cond_init (&cv1, NULL);
-    pthread_create(&thread[3],NULL,Consumer,(void*)i); 
-    pthread_create(&thread[0],NULL,Producer0,(void*)i); 
-    pthread_create(&thread[1],NULL,Producer1,(void*)i); 
-    pthread_create(&thread[2],NULL,Producer2,(void*)i); 
+    pthread_create(&thread[3],NULL,Consumer,NULL); 
+    pthread_create(&thread[0],NULL,Producer0,NULL); 
+    pthread_create(&thread[1],NULL,Producer1,NULL); 
+    pthread_create(&thread[2],NULL,Producer2,NULL); 
     for(int i=0;i<PRODUCER_THREADS+CONSUMER_THREAD;i++)
     {
         pthread_join(thread[i],NULL);
