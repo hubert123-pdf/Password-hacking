@@ -1,4 +1,4 @@
-# Password Hacking
+# Password Hacking - dictionary method
 
 ## To make:
 mkdir build <br />
